@@ -26,7 +26,8 @@ uses
   FireDAC.Stan.Param,
   FireDAC.Stan.Error,
   FireDAC.Phys.Intf,
-  FireDAC.DApt, Vcl.ExtCtrls;
+  FireDAC.DApt,
+  Vcl.ExtCtrls;
 
 type
   TfrmFieldsDef = class(TForm)
@@ -99,6 +100,7 @@ begin
   CopyFields(
     SelectedTable,
     aFieldList);
+  FConnection.Commit;
 end;
 
 { TfrmFieldsDef }

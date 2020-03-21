@@ -73,7 +73,8 @@ object frmFieldsDef: TfrmFieldsDef
       'FIELD_NAME, '
       'DISPLAY_LABEL, '
       'DISPLAY_FORMAT, '
-      'EDIT_FORMAT, '
+      'EDIT_FORMAT,'
+      'DEFAULT_EXPRESSION, '
       'VISIBLE FROM'
       'FD$FIELD_DEFS'
       '  ')

@@ -16,6 +16,7 @@ uses
   FireDAC.Stan.Async,
   FireDAC.Comp.DataSet,
   FireDAC.Comp.Client;
+
 type
 
   TFDDataSetEditor = class(TComponentEditor)
@@ -37,8 +38,6 @@ type
 procedure Register;
 
 implementation
-
-
 
 var
   PrevEditorClass: TComponentEditorClass = nil;
@@ -127,23 +126,26 @@ end;
 procedure TFDDataSetEditor.SetFieldsProperties;
 const
   R = 'SELECT TABLE_NAME , FIELD_NAME ' +
-    ', DISPLAY_LABEL , DISPLAY_FORMAT ,EDIT_FORMAT, VISIBLE FROM FD$FIELD_DEFS '
+    ', DISPLAY_LABEL , DISPLAY_FORMAT ,EDIT_FORMAT,DEFAULT_EXPRESSION ,VISIBLE FROM FD$FIELD_DEFS '
     + 'WHERE TABLE_NAME = :TABLE_NAME AND FIELD_NAME = :FIELD_NAME';
 var
   aFieldName: string;
   aDisplayLabel: string;
   aDisplayFormat: string;
+  aDefaultExpression: string;
   aEditFormat: string;
   aVisible: Integer;
   I: Integer;
   FieldDesc: TFDDatSColumn;
   aTableName: string;
   FQuery: TFDQuery;
+  FTransaction: TFDTransaction;
   OldActive: Boolean;
 begin
   try
     OldActive := DataSet.Active;
     DataSet.Active := True;
+
   except
     on E: Exception do
     begin
@@ -154,10 +156,17 @@ begin
   end;
 
   FQuery := TFDQuery.Create(DataSet.Connection);
+  FTransaction := TFDTransaction.Create(DataSet.Connection);
   try
+    FTransaction.Connection := DataSet.Connection;
+
+    FTransaction.Options.AutoStart := True;
+    FTransaction.Options.AutoStop := True;
+    FTransaction.Options.AutoCommit := True;
+
     FQuery.Connection := DataSet.Connection;
-    FQuery.Transaction := DataSet.Transaction;
-    FQuery.UpdateTransaction := DataSet.UpdateTransaction;
+    FQuery.Transaction := FTransaction;
+    FQuery.UpdateTransaction := FTransaction;
     FQuery.SQL.Add(R);
 
     for I := 0 to DataSet.Fields.Count - 1 do
@@ -165,16 +174,19 @@ begin
       FieldDesc := TFDDatSColumn(DataSet.GetFieldColumn(DataSet.Fields[I]));
       aFieldName := FieldDesc.Name;
       aTableName := FieldDesc.OriginTabName;
+      if not FTransaction.Active then
+        FTransaction.StartTransaction;
       FQuery.Close;
       FQuery.Params[0].AsString := aTableName;
       FQuery.Params[1].AsString := aFieldName;
       FQuery.Open;
-
       if FQuery.RecordCount > 0 then
       begin
         aDisplayLabel := Trim(FQuery.FieldByName('DISPLAY_LABEL').AsString);
         aDisplayFormat := Trim(FQuery.FieldByName('DISPLAY_FORMAT').AsString);
         aEditFormat := Trim(FQuery.FieldByName('EDIT_FORMAT').AsString);
+        aDefaultExpression := Trim(FQuery.FieldByName('DEFAULT_EXPRESSION')
+          .AsString);
         aVisible := FQuery.FieldByName('VISIBLE').AsInteger;
 
         if aDisplayLabel <> '' then
@@ -197,14 +209,21 @@ begin
             if TNumericField(DataSet.Fields[I]).EditFormat = '' then
               TNumericField(DataSet.Fields[I]).EditFormat := aEditFormat;
         end;
+        if aDefaultExpression <> '' then
+        begin
+          if DataSet.Fields[I].DefaultExpression = '' then
+            DataSet.Fields[I].DefaultExpression := aDefaultExpression;
+        end;
+        DataSet.Fields[I].Visible := Boolean(aVisible);
       end;
 
-      DataSet.Fields[I].Visible := Boolean(aVisible);
-
     end;
+    if FTransaction.Active then
+      FTransaction.Commit;
     FQuery.Close;
   finally
     FQuery.Free;
+    FTransaction.Free;
     DataSet.Active := OldActive;
   end;
 
