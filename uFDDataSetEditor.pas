@@ -171,6 +171,8 @@ begin
 
     for I := 0 to DataSet.Fields.Count - 1 do
     begin
+      if DataSet.Fields[I].FieldKind <> fkData then
+        Continue;
       FieldDesc := TFDDatSColumn(DataSet.GetFieldColumn(DataSet.Fields[I]));
       aFieldName := FieldDesc.Name;
       aTableName := FieldDesc.OriginTabName;
